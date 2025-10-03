@@ -21,7 +21,15 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors());
+// app.use(cors());
+
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*',  // default to all if env not set
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Serve static files
