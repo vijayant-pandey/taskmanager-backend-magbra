@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Edit Task</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body class="container py-4">
+  <h2>Edit Task</h2>
+
+  <form id="editForm">
+    <div class="mb-3">
+      <label class="form-label">Title</label>
+      <input id="title" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Description</label>
+      <textarea id="description" class="form-control" rows="4"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Due Date</label>
+      <input id="dueDate" type="date" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Status</label>
+      <select id="status" class="form-select">
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Priority</label>
+      <select id="priority" class="form-select">
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Assign To (userId)</label>
+      <input id="assignedTo" class="form-control" placeholder="user id">
+      <div class="form-text">Leave empty to keep existing assigned user.</div>
+    </div>
+
+    <button class="btn btn-primary" type="submit">Save Changes</button>
+    <a class="btn btn-secondary ms-2" href="/views/dashboard.html">Back to Tasks</a>
+  </form>
+
+  <div id="msg" class="mt-3"></div>
+
+  <script>
+    // helper to get query param
+    function getQueryParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name);
+    }
+
+    const taskId = getQueryParam('id');
+    if (!taskId) {
+      document.getElementById('msg').innerHTML = '<div class="alert alert-danger">No task id provided in URL</div>';
+      throw new Error('No task id');
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      document.getElementById('msg').innerHTML = '<div class="alert alert-warning">Please login first.</div>';
+      throw new Error('No token');
+    }
+
+    async function loadTask() {
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const task = await res.json();
+        if (!res.ok) {
+          document.getElementById('msg').innerHTML = `<div class="alert alert-danger">${task.message || JSON.stringify(task)}</div>`;
+          return;
+        }
+
+        // fill form
+        document.getElementById('title').value = task.title || "";
+        document.getElementById('description').value = task.description || "";
+        if (task.dueDate) {
+          // convert to yyyy-mm-dd
+          const d = new Date(task.dueDate);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          document.getElementById('dueDate').value = `${yyyy}-${mm}-${dd}`;
+        }
+        document.getElementById('status').value = task.status || "pending";
+        document.getElementById('priority').value = task.priority || "medium";
+        // document.getElementById('assignedTo').value = task.assignedTo || "";
+          // FIX: set assignedTo as ID string only
+        if (task.assignedTo) {
+            if (typeof task.assignedTo === 'object' && task.assignedTo._id) {
+                document.getElementById('assignedTo').value = task.assignedTo._id;
+            } 
+            else {
+                document.getElementById('assignedTo').value = task.assignedTo;
+            }
+        } 
+        else {
+            document.getElementById('assignedTo').value = "";
+        }
+        } 
+        catch (err) {
+        document.getElementById('msg').innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+      }
+    }
+
+    loadTask();
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        dueDate: document.getElementById('dueDate').value || undefined,
+        status: document.getElementById('status').value,
+        priority: document.getElementById('priority').value,
+        assignedTo: document.getElementById('assignedTo').value || undefined
+      };
+
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('msg').innerHTML = `<div class="alert alert-success">Task updated successfully.</div>`;
+          // redirect back to tasks after short delay
+          setTimeout(() => { window.location.href = '/views/dashboard.html'; }, 900);
+        } else {
+          document.getElementById('msg').innerHTML = `<div class="alert alert-danger">${data.message || JSON.stringify(data)}</div>`;
+        }
+      } catch (err) {
+        document.getElementById('msg').innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
